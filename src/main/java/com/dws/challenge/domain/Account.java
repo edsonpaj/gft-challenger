@@ -3,6 +3,8 @@ package com.dws.challenge.domain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.Data;
 
 import javax.validation.constraints.Min;
@@ -17,18 +19,27 @@ public class Account {
   private final String accountId;
 
   @NotNull
-  @Min(value = 0, message = "Initial balance must be positive.")
-  private BigDecimal balance;
+  private AtomicReference<BigDecimal> balance = new AtomicReference<BigDecimal>(BigDecimal.ZERO);
+
+  public void setBalance(BigDecimal newBalance) {
+    if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+      throw new IllegalArgumentException("Initial balance must be positive.");
+    }
+    balance.set(newBalance);
+  }
 
   public Account(String accountId) {
     this.accountId = accountId;
-    this.balance = BigDecimal.ZERO;
+    this.balance.set(BigDecimal.ZERO);
   }
 
   @JsonCreator
   public Account(@JsonProperty("accountId") String accountId,
     @JsonProperty("balance") BigDecimal balance) {
+    if (balance.compareTo(BigDecimal.ZERO) < 0) {
+      throw new IllegalArgumentException("Initial balance must be positive.");
+    }
     this.accountId = accountId;
-    this.balance = balance;
+    this.balance.set(balance);
   }
 }

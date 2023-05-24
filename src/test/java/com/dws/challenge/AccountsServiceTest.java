@@ -31,7 +31,7 @@ class AccountsServiceTest {
   @Test
   void addAccount() {
     Account account = new Account("Id-123");
-    account.setBalance(new BigDecimal(1000));
+    account.getBalance().set(new BigDecimal(1000));
     this.accountsService.createAccount(account);
 
     assertThat(this.accountsService.getAccount("Id-123")).isEqualTo(account);

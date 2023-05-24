@@ -4,12 +4,11 @@ import com.dws.challenge.domain.Account;
 import com.dws.challenge.dto.AmountTransferDTO;
 import com.dws.challenge.exception.NotFoundFundsException;
 import com.dws.challenge.repository.AccountsRepository;
+import com.dws.challenge.service.thread.TransferThread;
 import lombok.Getter;
 import lombok.val;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
 
 @Service
 public class AccountsService {
@@ -33,24 +32,27 @@ public class AccountsService {
     return this.accountsRepository.getAccount(accountId);
   }
 
-  public synchronized void amountTransfer(AmountTransferDTO amountTransferDTO) {
+  public void amountTransfer(AmountTransferDTO amountTransferDTO) {
     var sourceAccount = accountsRepository.getAccount(amountTransferDTO.getSourceAccountId());
     var destinationAccount = accountsRepository.getAccount(amountTransferDTO.getDestinationAccountId());
-    if(sourceAccount.getBalance().compareTo(amountTransferDTO.getTransferAmount()) > 0){
-      sourceAccount.setBalance(sourceAccount.getBalance().subtract(amountTransferDTO.getTransferAmount()));
-      destinationAccount.setBalance(destinationAccount.getBalance().add(amountTransferDTO.getTransferAmount()));
+    val transferAmount = amountTransferDTO.getTransferAmount();
 
-      final Account accountToNotify = new Account(sourceAccount.getAccountId(), sourceAccount.getBalance());
+    TransferThread transferTransaction = new TransferThread(sourceAccount, destinationAccount, transferAmount);
+    val t = new Thread(transferTransaction);
+    t.start();
 
+    try {
+      t.join();
+      final Account accountToNotify = new Account(sourceAccount.getAccountId(), sourceAccount.getBalance().get());
       notificationService.notifyAboutTransfer(accountToNotify,
               "An amount of "
-                      +amountTransferDTO.getTransferAmount().toString()
-                      +" was transferred from account "
-                      +amountTransferDTO.getSourceAccountId()
-                      +" to account "
-                      +amountTransferDTO.getDestinationAccountId());
-    } else {
-      throw new NotFoundFundsException("Insufficient funds to transfer.");
+                      + transferAmount.toString()
+                      + " was transferred from account "
+                      + amountTransferDTO.getSourceAccountId()
+                      + " to account "
+                      + amountTransferDTO.getDestinationAccountId());
+    } catch (NotFoundFundsException | InterruptedException e) {
+      e.printStackTrace();
     }
   }
 }

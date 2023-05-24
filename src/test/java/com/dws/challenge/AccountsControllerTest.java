@@ -6,7 +6,7 @@ import com.dws.challenge.exception.NotFoundFundsException;
 import com.dws.challenge.service.AccountsService;
 import com.dws.challenge.service.EmailNotificationService;
 import com.dws.challenge.service.NotificationService;
-import org.junit.jupiter.api.Assertions;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +60,7 @@ class AccountsControllerTest {
 
         Account account = accountsService.getAccount("Id-123");
         assertThat(account.getAccountId()).isEqualTo("Id-123");
-        assertThat(account.getBalance()).isEqualByComparingTo("1000");
+        assertThat(account.getBalance().get()).isEqualByComparingTo("1000");
     }
 
     @Test
@@ -135,8 +135,8 @@ class AccountsControllerTest {
         //Test asserts -
         Account accountSourceEndStatus = accountsService.getAccount(sourceAccountId);
         Account accountDestinationEndStatus = accountsService.getAccount(destinationAccountId);
-        assertThat(accountSourceEndStatus.getBalance()).isEqualByComparingTo("49.99");
-        assertThat(accountDestinationEndStatus.getBalance()).isEqualByComparingTo("50.02");
+        assertThat(accountSourceEndStatus.getBalance().get()).isEqualByComparingTo("49.99");
+        assertThat(accountDestinationEndStatus.getBalance().get()).isEqualByComparingTo("50.02");
     }
     @Test
     void amountTransferWithoutFunds() throws Exception {
@@ -147,16 +147,19 @@ class AccountsControllerTest {
         String destinationAccountId = "Test-amountTransferWithoutFunds-ac2" + System.currentTimeMillis();
         Account destinationAccount = new Account(destinationAccountId, new BigDecimal("0.00"));
         this.accountsService.createAccount(destinationAccount);
-
         Mockito.doNothing().when(notificationService).notifyAboutTransfer(Mockito.any(Account.class), Mockito.any(String.class));
 
-        Assertions.assertThrows(NotFoundFundsException.class, () ->
         //Service Call
         this.accountsService.amountTransfer(AmountTransferDTO.builder()
-                .sourceAccountId(sourceAccountId)
-                .destinationAccountId(destinationAccountId)
-                .transferAmount(new BigDecimal("50.00"))
-                .build())
-        );
+                 .sourceAccountId(sourceAccountId)
+                 .destinationAccountId(destinationAccountId)
+                 .transferAmount(new BigDecimal("50.00"))
+                 .build());
+
+        //Test asserts -
+        Account accountSourceEndStatus = accountsService.getAccount(sourceAccountId);
+        Account accountDestinationEndStatus = accountsService.getAccount(destinationAccountId);
+        assertThat(accountSourceEndStatus.getBalance().get()).isEqualByComparingTo("10.00");
+        assertThat(accountDestinationEndStatus.getBalance().get()).isEqualByComparingTo("0.00");
     }
 }
