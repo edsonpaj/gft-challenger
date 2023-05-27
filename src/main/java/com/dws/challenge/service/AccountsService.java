@@ -2,9 +2,7 @@ package com.dws.challenge.service;
 
 import com.dws.challenge.domain.Account;
 import com.dws.challenge.dto.AmountTransferDTO;
-import com.dws.challenge.exception.NotFoundFundsException;
 import com.dws.challenge.repository.AccountsRepository;
-import com.dws.challenge.service.thread.TransferThread;
 import lombok.Getter;
 import lombok.val;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,26 +31,24 @@ public class AccountsService {
   }
 
   public void amountTransfer(AmountTransferDTO amountTransferDTO) {
-    var sourceAccount = accountsRepository.getAccount(amountTransferDTO.getSourceAccountId());
-    var destinationAccount = accountsRepository.getAccount(amountTransferDTO.getDestinationAccountId());
     val transferAmount = amountTransferDTO.getTransferAmount();
-
-    TransferThread transferTransaction = new TransferThread(sourceAccount, destinationAccount, transferAmount);
-    val t = new Thread(transferTransaction);
-    t.start();
-
-    try {
-      t.join();
-      final Account accountToNotify = new Account(sourceAccount.getAccountId(), sourceAccount.getBalance().get());
-      notificationService.notifyAboutTransfer(accountToNotify,
-              "An amount of "
-                      + transferAmount.toString()
-                      + " was transferred from account "
-                      + amountTransferDTO.getSourceAccountId()
-                      + " to account "
-                      + amountTransferDTO.getDestinationAccountId());
-    } catch (NotFoundFundsException | InterruptedException e) {
-      e.printStackTrace();
+    if (this.accountsRepository.withdrawMoney(amountTransferDTO.getSourceAccountId(), transferAmount)) {
+      this.accountsRepository.depositMoney(amountTransferDTO.getDestinationAccountId(), transferAmount);
+      notifySuccessTransfer(amountTransferDTO);
+    } else {
+      System.out.println("Insufficient funds - transaction not processed - Possible solutions, 1 - Put in a retry strategy. 2 - Send to Dead letter queue.");
     }
+  }
+
+  private void notifySuccessTransfer(AmountTransferDTO amountTransferDTO) {
+    val sourceAccountUpdated = this.accountsRepository.getAccount(amountTransferDTO.getSourceAccountId());
+    final Account accountToNotify = new Account(amountTransferDTO.getSourceAccountId(), sourceAccountUpdated.getBalance().get());
+    notificationService.notifyAboutTransfer(accountToNotify,
+            "An amount of "
+                    + amountTransferDTO.getTransferAmount()
+                    + " was transferred from account "
+                    + amountTransferDTO.getSourceAccountId()
+                    + " to account "
+                    + amountTransferDTO.getDestinationAccountId());
   }
 }

@@ -4,8 +4,10 @@ import com.dws.challenge.domain.Account;
 import com.dws.challenge.exception.DuplicateAccountIdException;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Repository
 public class AccountsRepositoryInMemory implements AccountsRepository {
@@ -29,6 +31,42 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
     @Override
     public void clearAccounts() {
         accounts.clear();
+    }
+
+    @Override
+    public boolean withdrawMoney(String accountId, BigDecimal amount) {
+        AtomicBoolean transactionDone = new AtomicBoolean(false);
+        accounts.computeIfPresent(accountId, (key, accountTarget) -> {
+            if (isPositive(amount) && haveSufficientFunds(amount, accountTarget)) {
+                transactionDone.set(true);
+                return new Account(accountTarget.getAccountId(), accountTarget.getBalance().get().subtract(amount));
+            } else {
+                return accountTarget;
+            }
+        });
+        return transactionDone.get();
+    }
+
+    @Override
+    public boolean depositMoney(String accountId, BigDecimal amount) {
+        AtomicBoolean transactionDone = new AtomicBoolean(false);
+        accounts.computeIfPresent(accountId, (key, accountTarget) -> {
+            if (isPositive(amount)) {
+                transactionDone.set(true);
+                return new Account(accountTarget.getAccountId(), accountTarget.getBalance().get().add(amount));
+            } else {
+                return accountTarget;
+            }
+        });
+        return transactionDone.get();
+    }
+
+    private static boolean haveSufficientFunds(BigDecimal amount, Account accountTarget) {
+        return accountTarget.getBalance().get().compareTo(amount) > 0;
+    }
+
+    private static boolean isPositive(BigDecimal amount) {
+        return amount.compareTo(BigDecimal.ZERO) > 0;
     }
 
 }
