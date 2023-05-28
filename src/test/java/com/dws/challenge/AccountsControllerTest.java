@@ -185,7 +185,7 @@ class AccountsControllerTest {
     }
 
     @Test
-    void multiplesSimultaneousTransfers() throws Exception {
+    void multiplesSimultaneousTransfersToSameAccount() throws Exception {
         //Test setup -
         List<String> listAccIds = new ArrayList<>();
         for (int i = 1; i <= 100; i++) {
@@ -216,6 +216,36 @@ class AccountsControllerTest {
                 });
         Account acLuckyGuy = accountsService.getAccount(luckyGuy);
         assertThat(acLuckyGuy.getBalance().get()).isEqualByComparingTo("1090.00");
+    }
+
+    @Test
+    void multiplesSimultaneousTransfersFromSameAccount() throws Exception {
+        //Test setup -
+        List<String> listAccIds = new ArrayList<>();
+        String acRichGuyId = setupTestInsertAccount("acRichGuy", "9000.00");
+        for (int i = 1; i <= 100; i++) {
+            listAccIds.add(setupTestInsertAccount("ac" + i, "10.00"));
+        }
+        Mockito.doNothing().when(notificationService).notifyAboutTransfer(Mockito.any(Account.class), Mockito.any(String.class));
+
+        //Service Call
+        listAccIds.parallelStream()
+                .forEach(destinationACId -> {
+                    this.accountsService.amountTransfer(AmountTransferDTO.builder()
+                            .sourceAccountId(acRichGuyId)
+                            .destinationAccountId(destinationACId)
+                            .transferAmount(new BigDecimal("10.00"))
+                            .build());
+                });
+
+        //Test asserts -
+        listAccIds.parallelStream()
+                .forEach(luckyOnes -> {
+                    Account accountStatus = accountsService.getAccount(luckyOnes);
+                    assertThat(accountStatus.getBalance().get()).isEqualByComparingTo("20.00");
+                });
+        Account acLuckyGuy = accountsService.getAccount(acRichGuyId);
+        assertThat(acLuckyGuy.getBalance().get()).isEqualByComparingTo("8000.00");
     }
 
     private String setupTestInsertAccount(String accountPrefix, String initialAmount) {
