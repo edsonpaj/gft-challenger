@@ -42,17 +42,32 @@ public class AccountsController {
     return this.accountsService.getAccount(accountId);
   }
 
-    @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE, path = "/amountTransfer")
-    public ResponseEntity<Object> amountTransfer(@RequestBody @Valid AmountTransferDTO amountTransferDTO) {
-      log.info("Transferring value {} from account {} to account {}",
-              amountTransferDTO.getTransferAmount().toString(),
-              amountTransferDTO.getSourceAccountId(),
-              amountTransferDTO.getDestinationAccountId());
-      try {
-        this.accountsService.amountTransfer(amountTransferDTO);
-      } catch (Exception e) {
-        return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
-      }
-      return new ResponseEntity<>(HttpStatus.ACCEPTED);
+  /**
+   * Transfers an amount of money from one account to another.
+   *
+   * @param amountTransferDTO the transfer details, including source and destination accounts
+   *                          Payload sample: <br/>
+   * {<br/>
+   *   "sourceAccountId": "123456789",<br/>
+   *   "destinationAccountId": "987654321",<br/>
+   *   "transferAmount": 100.50<br/>
+   * }<br/>
+   * @return a ResponseEntity with the appropriate HTTP status and response body
+   */
+  @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE, path = "/amountTransfer")
+  public ResponseEntity<Object> amountTransfer(@RequestBody @Valid AmountTransferDTO amountTransferDTO) {
+    log.info("Transferring value {} from account {} to account {}",
+            amountTransferDTO.getTransferAmount().toString(),
+            amountTransferDTO.getSourceAccountId(),
+            amountTransferDTO.getDestinationAccountId());
+    try {
+      // Attempt to perform the amount transfer using the AccountsService
+      this.accountsService.amountTransfer(amountTransferDTO);
+    } catch (Exception e) {
+      // If an exception occurs during the transfer, return an appropriate error response
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.FORBIDDEN);
     }
+    // Return a successful response indicating the transfer was accepted
+    return new ResponseEntity<>(HttpStatus.ACCEPTED);
   }
+}
